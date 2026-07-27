@@ -1,0 +1,32 @@
+{
+  "tools": [
+    {
+      "name": "search_web",
+      "module": "tools.search_web",
+      "class": "SearchWebTool",
+      "keywords": ["найди", "поиск", "search", "google", "интернет", "узнай"],
+      "description": "Поиск информации в DuckDuckGo"
+    },
+    {
+      "name": "reminder",
+      "module": "tools.reminder",
+      "class": "ReminderTool",
+      "keywords": ["напомни", "reminder", "напоминание", "будильник"],
+      "description": "Создание локальных напоминаний"
+    },
+    {
+      "name": "file_reader",
+      "module": "tools.file_reader",
+      "class": "FileReaderTool",
+      "keywords": ["прочитай", "файл", "read", "file", "открой"],
+      "description": "Чтение и суммаризация локальных файлов"
+    },
+    {
+      "name": "code_gen",
+      "module": "tools.code_gen",
+      "class": "CodeGenTool",
+      "keywords": ["напиши код", "code", "программа", "скрипт", "python"],
+      "description": "Генерация кода (без выполнения)"
+    }
+  ]
+}
