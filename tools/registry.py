@@ -7,7 +7,6 @@ from __future__ import annotations
 import importlib
 import json
 import re
-from typing import Any
 
 from contracts.interfaces import BaseTool
 from infra.config import Config
@@ -18,8 +17,7 @@ class ToolRegistry:
     """
     Реестр инструментов с динамической загрузкой.
     
-    Graceful degradation: если инструмент не загружен (ImportError, 
-    AttributeError или любая другая Exception), логируется WARNING, 
+    Graceful degradation: если инструмент не загружен, логируется WARNING,
     и реестр продолжает загрузку остальных инструментов.
     """
     
@@ -47,37 +45,34 @@ class ToolRegistry:
             module_path = tool_config.get('module')
             class_name = tool_config.get('class')
             
-            # Security validation: restrict module path to tools.*
             if not module_path or not re.match(r'^tools\.[a-z_]+$', module_path):
                 self._logger.warning(
                     f"Invalid module path for tool {tool_name}: {module_path}. Skipping.",
-                    extra={'tool': tool_name}
+                    extra={'tool_name': tool_name}
                 )
                 continue
             
             if not class_name or not re.match(r'^[A-Z][a-zA-Z0-9]*Tool$', class_name):
                 self._logger.warning(
                     f"Invalid class name for tool {tool_name}: {class_name}. Skipping.",
-                    extra={'tool': tool_name}
+                    extra={'tool_name': tool_name}
                 )
                 continue
             
             try:
                 module = importlib.import_module(module_path)
                 tool_class = getattr(module, class_name)
-                
-                # Structural subtyping check (optional but safe)
-                # We trust the Protocol, but instantiate it
                 instance = tool_class()
                 self._tools[tool_name] = instance
-                self._logger.info(f"Tool loaded successfully: {tool_name}", extra={'tool': tool_name})
-                
+                self._logger.info(
+                    f"Tool loaded successfully: {tool_name}",
+                    extra={'tool_name': tool_name}
+                )
             except Exception as e:
-                # Graceful degradation: catch ANY exception (including SyntaxError) 
-                # to prevent one broken tool from crashing the entire registry.
+                # Graceful degradation: catch ANY exception (including SyntaxError)
                 self._logger.warning(
                     f"Failed to load tool {tool_name} from {module_path}: {e}",
-                    extra={'tool': tool_name, 'module': module_path, 'error': str(e)}
+                    extra={'tool_name': tool_name, 'module_path': module_path, 'error': str(e)}
                 )
     
     def get_tool(self, name: str) -> BaseTool | None:

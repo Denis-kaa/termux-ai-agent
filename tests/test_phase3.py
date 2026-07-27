@@ -52,7 +52,7 @@ class TestScorer:
         registry = {"search_web": ("поиск", "найди"), "reminder": ("напомни",)}
         tool, score, matched = calculate_keyword_score("найди информацию", registry)
         assert tool == "search_web"
-        assert score == 0.5  # 1 из 2 keywords
+        assert score == 0.5
         assert "найди" in matched
 
     def test_empty_keywords(self):
@@ -62,7 +62,6 @@ class TestScorer:
         assert score == 0.0
 
     def test_tie_breaker_lexicographical(self):
-        # Оба инструмента имеют score 1.0. "code_gen" < "search_web" лексикографически.
         registry = {
             "search_web": ("тест",),
             "code_gen": ("тест",)
@@ -88,7 +87,8 @@ class TestRouter:
 
     @patch('router.registry_loader.load_keywords_registry')
     def test_keyword_routing_high_confidence(self, mock_load, mock_llm_gateway):
-        mock_load.return_value = {"search_web": ("поиск", "найди"), "reminder": ("напомни",)}
+        # score = 1/1 = 1.0 >= 0.6 → keyword routing без LLM fallback
+        mock_load.return_value = {"search_web": ("найди",), "reminder": ("напомни",)}
         
         router = Router(llm_gateway=mock_llm_gateway)
         req = NormalizedRequest(
@@ -108,6 +108,7 @@ class TestRouter:
 
     @patch('router.registry_loader.load_keywords_registry')
     def test_llm_fallback_routing(self, mock_load, mock_llm_gateway):
+        # score = 0.0 < 0.6 → LLM fallback
         mock_load.return_value = {"search_web": ("поиск",), "reminder": ("напомни",)}
         
         router = Router(llm_gateway=mock_llm_gateway)
@@ -124,7 +125,6 @@ class TestRouter:
         assert decision.method == RoutingMethod.LLM_FALLBACK.value
         assert decision.llm_calls_used == 1
         mock_llm_gateway.generate.assert_called_once()
-        # Проверка передачи correlation_id
         call_kwargs = mock_llm_gateway.generate.call_args.kwargs
         assert call_kwargs['correlation_id'] == "test-002"
 
@@ -169,7 +169,6 @@ class TestToolRegistry:
             ]
         })
         
-        # Первый импорт успешен, второй бросает Exception
         mock_import.side_effect = [
             MagicMock(ValidTool=MagicMock(return_value=MagicMock())),
             Exception("Syntax error in module")
