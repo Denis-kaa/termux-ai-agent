@@ -171,9 +171,19 @@ class TestToolRegistry:
         registry_file = tmp_path / "tools_registry.json"
         registry_file.write_text(json.dumps(registry_json))
         
-        # Подменяем Config.get, чтобы он возвращал путь к временному файлу
+        # FIX: используем side_effect для возврата разных значений в зависимости от ключа
         from infra.config import Config
-        with patch.object(Config, 'get', return_value=str(registry_file)):
+        
+        def mock_config_get(key):
+            if key == 'TOOLS_REGISTRY_PATH':
+                return str(registry_file)
+            elif key == 'LOGS_DIR':
+                return str(tmp_path / "logs")
+            else:
+                # Для остальных ключей вызываем оригинальный метод
+                return Config._data.get(key)
+        
+        with patch.object(Config, 'get', side_effect=mock_config_get):
             # Настраиваем mock для importlib
             valid_module = MagicMock()
             valid_module.ValidTool = MagicMock(return_value=MagicMock())
