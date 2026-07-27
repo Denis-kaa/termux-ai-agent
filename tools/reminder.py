@@ -15,7 +15,7 @@ from contracts.enums import ErrorCode, LLMStatus
 from contracts.schemas import LLMResponse
 from infra.logger import get_logger
 from llm_gateway import LLMGatewayImpl
-from platform.termux_api import send_notification, check_api_available
+from infra.termux_api import send_notification, check_api_available
 from tools.factories import create_success_result, create_error_result
 
 
