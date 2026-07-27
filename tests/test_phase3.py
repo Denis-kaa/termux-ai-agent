@@ -171,7 +171,7 @@ class TestToolRegistry:
         registry_file = tmp_path / "tools_registry.json"
         registry_file.write_text(json.dumps(registry_json))
         
-        # FIX: используем side_effect для возврата разных значений в зависимости от ключа
+        # FIX: возвращаем дефолтные значения для всех ключей, нужных для логирования
         from infra.config import Config
         
         def mock_config_get(key):
@@ -179,6 +179,10 @@ class TestToolRegistry:
                 return str(registry_file)
             elif key == 'LOGS_DIR':
                 return str(tmp_path / "logs")
+            elif key == 'LOG_MAX_BYTES':
+                return 5 * 1024 * 1024  # 5MB
+            elif key == 'LOG_BACKUP_COUNT':
+                return 3
             else:
                 # Для остальных ключей вызываем оригинальный метод
                 return Config._data.get(key)
