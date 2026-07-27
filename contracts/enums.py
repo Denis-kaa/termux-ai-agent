@@ -51,3 +51,10 @@ class LLMStatus(str, Enum):
     PARSE_ERROR = "parse_error"
     OOM = "oom"
     DISABLED = "disabled"
+
+class NotificationErrorCode(str, Enum):
+    """Коды ошибок termux-api (для NotificationResult)."""
+    COMMAND_NOT_FOUND = "command_not_found"
+    PERMISSION_DENIED = "permission_denied"
+    TIMEOUT = "timeout"
+    UNKNOWN = "unknown"

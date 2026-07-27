@@ -54,3 +54,16 @@ class LLMResponse:
     parse_method: str
     latency_ms: int
     tokens_used: int | None = None
+
+@dataclass(frozen=True)
+class NotificationResult:
+    """Результат вызова termux-api."""
+    success: bool
+    error_code: str | None = None
+    error_details: str | None = None
+    
+    def __post_init__(self):
+        if not self.success and self.error_code is None:
+            raise ValueError("success=False requires non-None error_code")
+        if self.success and self.error_code is not None:
+            raise ValueError("success=True requires None error_code")
