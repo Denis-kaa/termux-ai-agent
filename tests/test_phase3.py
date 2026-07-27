@@ -85,10 +85,8 @@ class TestRouter:
         )
         return gateway
 
-    # FIX: патчим там, где функция ИСПОЛЬЗУЕТСЯ (router.router), а не где определена
     @patch('router.router.load_keywords_registry')
     def test_keyword_routing_high_confidence(self, mock_load, mock_llm_gateway):
-        # score = 1/1 = 1.0 >= 0.6 → keyword routing без LLM fallback
         mock_load.return_value = {"search_web": ("найди",), "reminder": ("напомни",)}
         
         router = Router(llm_gateway=mock_llm_gateway)
@@ -109,7 +107,6 @@ class TestRouter:
 
     @patch('router.router.load_keywords_registry')
     def test_llm_fallback_routing(self, mock_load, mock_llm_gateway):
-        # score = 0.0 < 0.6 → LLM fallback
         mock_load.return_value = {"search_web": ("поиск",), "reminder": ("напомни",)}
         
         router = Router(llm_gateway=mock_llm_gateway)
@@ -158,30 +155,34 @@ class TestRouter:
 
 
 class TestToolRegistry:
-    # FIX: сбрасываем Config перед каждым тестом, чтобы избежать состояния от предыдущих тестов
     def setup_method(self):
         from infra.config import Config
         Config.reset()
     
-    @patch('builtins.open')
     @patch('importlib.import_module')
-    def test_graceful_degradation_on_import_error(self, mock_import, mock_open):
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({
+    def test_graceful_degradation_on_import_error(self, mock_import, tmp_path):
+        # Создаём временный JSON-файл с 2 инструментами
+        registry_json = {
             "tools": [
                 {"name": "valid_tool", "module": "tools.valid", "class": "ValidTool", "keywords": [], "description": ""},
                 {"name": "broken_tool", "module": "tools.broken", "class": "BrokenTool", "keywords": [], "description": ""}
             ]
-        })
+        }
+        registry_file = tmp_path / "tools_registry.json"
+        registry_file.write_text(json.dumps(registry_json))
         
-        # FIX: явное присваивание атрибута mock-модуля вместо MagicMock(Attr=...)
-        valid_module = MagicMock()
-        valid_module.ValidTool = MagicMock(return_value=MagicMock())
-        
-        mock_import.side_effect = [valid_module, Exception("Syntax error in module")]
-        
-        registry = ToolRegistry()
-        
-        assert registry.get_tool("valid_tool") is not None
-        assert registry.get_tool("broken_tool") is None
-        assert "valid_tool" in registry.get_available_tools()
-        assert "broken_tool" not in registry.get_available_tools()
+        # Подменяем Config.get, чтобы он возвращал путь к временному файлу
+        from infra.config import Config
+        with patch.object(Config, 'get', return_value=str(registry_file)):
+            # Настраиваем mock для importlib
+            valid_module = MagicMock()
+            valid_module.ValidTool = MagicMock(return_value=MagicMock())
+            
+            mock_import.side_effect = [valid_module, Exception("Syntax error in module")]
+            
+            registry = ToolRegistry()
+            
+            assert registry.get_tool("valid_tool") is not None
+            assert registry.get_tool("broken_tool") is None
+            assert "valid_tool" in registry.get_available_tools()
+            assert "broken_tool" not in registry.get_available_tools()
