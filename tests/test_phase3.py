@@ -85,7 +85,8 @@ class TestRouter:
         )
         return gateway
 
-    @patch('router.registry_loader.load_keywords_registry')
+    # FIX: патчим там, где функция ИСПОЛЬЗУЕТСЯ (router.router), а не где определена
+    @patch('router.router.load_keywords_registry')
     def test_keyword_routing_high_confidence(self, mock_load, mock_llm_gateway):
         # score = 1/1 = 1.0 >= 0.6 → keyword routing без LLM fallback
         mock_load.return_value = {"search_web": ("найди",), "reminder": ("напомни",)}
@@ -106,7 +107,7 @@ class TestRouter:
         assert decision.llm_calls_used == 0
         mock_llm_gateway.generate.assert_not_called()
 
-    @patch('router.registry_loader.load_keywords_registry')
+    @patch('router.router.load_keywords_registry')
     def test_llm_fallback_routing(self, mock_load, mock_llm_gateway):
         # score = 0.0 < 0.6 → LLM fallback
         mock_load.return_value = {"search_web": ("поиск",), "reminder": ("напомни",)}
@@ -128,7 +129,7 @@ class TestRouter:
         call_kwargs = mock_llm_gateway.generate.call_args.kwargs
         assert call_kwargs['correlation_id'] == "test-002"
 
-    @patch('router.registry_loader.load_keywords_registry')
+    @patch('router.router.load_keywords_registry')
     def test_llm_fallback_failure(self, mock_load, mock_llm_gateway):
         mock_load.return_value = {"search_web": ("поиск",)}
         mock_llm_gateway.generate.return_value = MagicMock(
@@ -157,11 +158,14 @@ class TestRouter:
 
 
 class TestToolRegistry:
-    @patch('infra.config.Config.get')
+    # FIX: сбрасываем Config перед каждым тестом, чтобы избежать состояния от предыдущих тестов
+    def setup_method(self):
+        from infra.config import Config
+        Config.reset()
+    
     @patch('builtins.open')
     @patch('importlib.import_module')
-    def test_graceful_degradation_on_import_error(self, mock_import, mock_open, mock_config):
-        mock_config.return_value = "/fake/path/tools_registry.json"
+    def test_graceful_degradation_on_import_error(self, mock_import, mock_open):
         mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({
             "tools": [
                 {"name": "valid_tool", "module": "tools.valid", "class": "ValidTool", "keywords": [], "description": ""},
@@ -169,10 +173,11 @@ class TestToolRegistry:
             ]
         })
         
-        mock_import.side_effect = [
-            MagicMock(ValidTool=MagicMock(return_value=MagicMock())),
-            Exception("Syntax error in module")
-        ]
+        # FIX: явное присваивание атрибута mock-модуля вместо MagicMock(Attr=...)
+        valid_module = MagicMock()
+        valid_module.ValidTool = MagicMock(return_value=MagicMock())
+        
+        mock_import.side_effect = [valid_module, Exception("Syntax error in module")]
         
         registry = ToolRegistry()
         
