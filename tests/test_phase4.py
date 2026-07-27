@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from contracts.enums import ErrorCode, LLMStatus, NotificationErrorCode
 from contracts.schemas import NotificationResult
 from tools.factories import create_success_result, create_error_result
-from platform.termux_api import send_notification, check_api_available, reset_api_cache
+from infra.termux_api import send_notification, check_api_available, reset_api_cache
 
 
 class TestTermuxAPI:
