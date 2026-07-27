@@ -1,5 +1,6 @@
 """
 Поиск в DuckDuckGo HTML. Парсинг результатов, ротация User-Agent, retry с backoff.
+v3.9.0: принимает generic context, self-parsing query из sanitized_prompt.
 """
 from __future__ import annotations
 
@@ -9,6 +10,7 @@ from typing import Any
 
 from contracts.constants import HTTP_TIMEOUT_S, HTTP_RETRY_ATTEMPTS, HTTP_RETRY_BACKOFF_S, USER_AGENTS
 from contracts.enums import ErrorCode
+from contracts.schemas import ToolResult
 from infra.logger import get_logger
 from tools.factories import create_success_result, create_error_result
 
@@ -30,13 +32,21 @@ class SearchWebTool:
     def tool_name(self) -> str:
         return "search_web"
     
-    def execute(self, params: Mapping[str, Any], correlation_id: str) -> 'ToolResult':
+    def execute(self, context: Mapping[str, Any], correlation_id: str) -> ToolResult:
+        """
+        Выполняет поиск в DuckDuckGo.
+        v3.9.0: извлекает query из context['sanitized_prompt'].
+        """
         logger = get_logger('tools.search_web', correlation_id)
         start_time = time.time()
         
-        query = params.get('query', '')
+        # v3.9.0: self-parsing из generic context
+        query = context.get('sanitized_prompt', '').strip()
         if not query:
-            return create_error_result(self.tool_name, correlation_id, 0, ErrorCode.PARSE_FAILED.value, "Empty query")
+            return create_error_result(
+                self.tool_name, correlation_id, 0,
+                ErrorCode.PARSE_FAILED.value, "Empty query in context"
+            )
         
         last_error = None
         for attempt in range(HTTP_RETRY_ATTEMPTS + 1):
@@ -49,7 +59,7 @@ class SearchWebTool:
                     timeout=HTTP_TIMEOUT_S,
                 )
                 
-                if response.status_code != 200:
+                if response.status_code not in (200, 202):
                     last_error = f"HTTP {response.status_code}"
                     if attempt < HTTP_RETRY_ATTEMPTS:
                         time.sleep(HTTP_RETRY_BACKOFF_S[attempt])
