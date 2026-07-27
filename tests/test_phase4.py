@@ -19,14 +19,14 @@ class TestTermuxAPI:
     def setup_method(self):
         reset_api_cache()
 
-    @patch('platform.termux_api.subprocess.run')
+    @patch('infra.termux_api.subprocess.run')
     def test_send_notification_success(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
         result = send_notification("Title", "Content", correlation_id="test-1")
         assert result.success is True
         assert result.error_code is None
 
-    @patch('platform.termux_api.subprocess.run')
+    @patch('infra.termux_api.subprocess.run')
     def test_send_notification_timeout(self, mock_run):
         import subprocess
         mock_run.side_effect = subprocess.TimeoutExpired(cmd="termux-notification", timeout=5)
@@ -34,7 +34,7 @@ class TestTermuxAPI:
         assert result.success is False
         assert result.error_code == NotificationErrorCode.TIMEOUT.value
 
-    @patch('platform.termux_api.shutil.which')
+    @patch('infra.termux_api.shutil.which')
     def test_check_api_available(self, mock_which):
         mock_which.return_value = "/usr/bin/termux-notification"
         assert check_api_available() is True
